@@ -157,6 +157,7 @@ const LAYER_TEST = {
 // ----- Move queue (serialize animations) -----
 const moveQueue = [];
 let draining = false;
+let __queueDriving = false;
 const idleResolvers = [];
 
 // Enqueue a single move string, e.g. "R", "U'", "F2"
@@ -184,9 +185,10 @@ async function drainQueue() {
     try {
         while (moveQueue.length) {
             const next = moveQueue.shift();
-            // Defensive: ignore empty/unknown tokens
-            if (!next || typeof next !== 'string') continue;
-            await rotateLayer(next);
+            if (!next) continue;
+            __queueDriving = true;
+            await rotateLayer(next, /*__fromQueue:*/ true);
+            __queueDriving = false;
         }
     } catch (err) {
         console.error('Move queue error:', err);
@@ -197,7 +199,13 @@ async function drainQueue() {
     }
 }
 
-function rotateLayer(move) {
+function rotateLayer(move, __fromQueue = false) {
+    // If someone calls rotateLayer directly, reroute it into the queue
+    if (!__fromQueue) {
+        enqueueMove(move);
+        return waitForIdle(); // resolve when it actually finishes via the queue
+    }
+
     return new Promise(resolve => {
         const face = move[0];
         const suf = move.length > 1 ? move.slice(1) : "";
