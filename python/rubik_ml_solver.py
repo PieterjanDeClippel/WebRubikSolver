@@ -1,6 +1,6 @@
 # rubik_ml_solver.py
 from __future__ import annotations
-import sys, json, os, math, random
+import sys, json, os, math, random, traceback
 from typing import List, Tuple, Optional
 
 # ---------------- Optional Torch import (guarded) ----------------
@@ -52,6 +52,28 @@ def apply_perm(s: str, perm: List[Tuple[int,...]], turns: int = 1) -> str:
 def face_indices(face: int) -> List[int]:
     start = face * 9
     return list(range(start, start + 9))
+
+ALLOWED = set("URFDLB")
+CENTER_INDEXES = [4, 13, 22, 31, 40, 49]  # center of U,R,F,D,L,B in facelet indexing
+CENTER_EXPECTED = list("URFDLB")
+
+def validate_facelets(facelets: str) -> Optional[str]:
+    if not isinstance(facelets, str) or len(facelets) != 54:
+        return "facelets must be a 54-char string"
+    # allowed chars
+    if any(ch not in ALLOWED for ch in facelets):
+        return "facelets may only contain letters U,R,F,D,L,B"
+    # counts (must be 9 each)
+    from collections import Counter
+    cnt = Counter(facelets)
+    for ch in ALLOWED:
+        if cnt.get(ch, 0) != 9:
+            return f"invalid color counts: need 9 of each U,R,F,D,L,B (got {dict(cnt)})"
+    # centers fixed
+    for idx, exp in zip(CENTER_INDEXES, CENTER_EXPECTED):
+        if facelets[idx] != exp:
+            return f"invalid centers: position {idx} must be '{exp}'"
+    return None
 
 # Precomputed 4-cycles for quarter turns (in facelet indexing)
 U_CYCLES = [
@@ -195,29 +217,38 @@ def solve_facelets(facelets: str, use_ml: bool=False) -> List[str]:
 
 # ---------------- CLI JSON bridge ----------------
 def main():
-    # Usage: python rubik_ml_solver.py --json  (reads a single JSON object from stdin)
     if "--json" in sys.argv:
         data = sys.stdin.read()
         try:
             req = json.loads(data)
         except Exception:
-            print(json.dumps({"error":"invalid json"}))
+            msg = "invalid json"
+            sys.stderr.write(msg + "\n"); sys.stderr.flush()
+            print(json.dumps({"error": msg}))
             sys.exit(2)
 
         facelets = req.get("facelets","")
         use_ml = bool(req.get("use_ml", False))
 
-        if not isinstance(facelets, str) or len(facelets) != 54:
-            print(json.dumps({"error":"facelets must be a 54-char string"}))
+        # pre-validate string
+        vmsg = validate_facelets(facelets)
+        if vmsg:
+            sys.stderr.write(vmsg + "\n"); sys.stderr.flush()
+            print(json.dumps({"error": vmsg}))
             sys.exit(3)
 
         try:
             moves = solve_facelets(facelets, use_ml=use_ml)
             print(json.dumps({"moves": moves, "length": len(moves)}))
             sys.exit(0)
+        except ValueError as e:
+            # kociemba raises ValueError("Error. Probably cubestring is invalid")
+            msg = str(e) or "invalid cube"
+            print(json.dumps({"error": msg}))
+            sys.stderr.write((msg + "\n")); sys.stderr.flush()
+            sys.exit(1)
         except Exception as e:
             tb = traceback.format_exc()
-            # Send to both stdout (as JSON) and stderr (raw traceback)
             print(json.dumps({"error": str(e)}))
             sys.stderr.write(tb + "\n"); sys.stderr.flush()
             sys.exit(1)
