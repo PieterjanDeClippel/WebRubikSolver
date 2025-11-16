@@ -1,4 +1,11 @@
 # =========================
+# docker build -t rubik-solver:lite .
+# docker run --rm -p 8080:8080 rubik-solver:lite
+# Open http://localhost:8080
+# =========================
+
+
+# =========================
 # Build stage (dotnet)
 # =========================
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
@@ -15,26 +22,30 @@ RUN dotnet publish ./src/WebRubikSolver/WebRubikSolver.csproj -c Release -o /app
 # =========================
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 
-# Python + venv tools
+# Python + build deps (for kociemba C extension)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 python3-venv && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+        python3 python3-venv python3-dev \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a venv and install packages into it
+# Create a venv and upgrade packaging tools
 ENV PY_HOME=/opt/py
-RUN python3 -m venv $PY_HOME
+RUN python3 -m venv $PY_HOME && \
+    $PY_HOME/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Torch optional (large). Install into venv.
+# Optional ML (large)
 ARG ENABLE_ML=false
 ENV ENABLE_ML=${ENABLE_ML}
 
+# Install Python deps into venv
 RUN $PY_HOME/bin/pip install --no-cache-dir kociemba tqdm && \
     if [ "$ENABLE_ML" = "true" ]; then \
         $PY_HOME/bin/pip install --no-cache-dir \
             torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu ; \
     fi
 
-# Make the venv Python first on PATH so "python3" resolves to it
+# Make venv python first on PATH
 ENV PATH="$PY_HOME/bin:${PATH}"
 
 WORKDIR /app
