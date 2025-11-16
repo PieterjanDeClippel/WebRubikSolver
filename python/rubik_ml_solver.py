@@ -216,7 +216,10 @@ def main():
             print(json.dumps({"moves": moves, "length": len(moves)}))
             sys.exit(0)
         except Exception as e:
+            tb = traceback.format_exc()
+            # Send to both stdout (as JSON) and stderr (raw traceback)
             print(json.dumps({"error": str(e)}))
+            sys.stderr.write(tb + "\n"); sys.stderr.flush()
             sys.exit(1)
 
 if __name__ == "__main__":

@@ -15,11 +15,16 @@ app.MapPost("/api/solve", async (SolveRequest req, HttpContext ctx) =>
     var psi = new ProcessStartInfo
     {
         FileName = "python3",
-        ArgumentList = { "/app/python/rubik_ml_solver.py", "--json" },
+        // -u = unbuffered stdout/stderr, so we don't lose the traceback
+        ArgumentList = { "-u", "/app/python/rubik_ml_solver.py", "--json" },
         RedirectStandardInput = true,
         RedirectStandardOutput = true,
-        RedirectStandardError = true
+        RedirectStandardError = true,
+        UseShellExecute = false
     };
+
+    // helpful env for safety
+    psi.Environment["PYTHONUNBUFFERED"] = "1";
 
     using var proc = Process.Start(psi);
     if (proc is null) return Results.Problem("Failed to start python.");
@@ -28,22 +33,37 @@ app.MapPost("/api/solve", async (SolveRequest req, HttpContext ctx) =>
     await proc.StandardInput.WriteAsync(payload);
     proc.StandardInput.Close();
 
-    var stdout = await proc.StandardOutput.ReadToEndAsync();
-    var stderr = await proc.StandardError.ReadToEndAsync();
+    var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+    var stderrTask = proc.StandardError.ReadToEndAsync();
+
+    await Task.WhenAll(stdoutTask, stderrTask);
+    var stdout = stdoutTask.Result;
+    var stderr = stderrTask.Result;
+
     await proc.WaitForExitAsync();
 
-    if (proc.ExitCode != 0)
-        return Results.Problem($"Python error: {stderr}");
+    // If Python returned JSON on stdout, try to surface that, even on non-zero exit.
+    if (!string.IsNullOrWhiteSpace(stdout))
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(stdout);
+            // If it contains an "error" key, map to 400; else forward as normal
+            if (doc.RootElement.TryGetProperty("error", out var errEl))
+            {
+                return Results.BadRequest(new { error = errEl.GetString() });
+            }
+            return Results.Json(doc.RootElement.Clone());
+        }
+        catch
+        {
+            // fall through to stderr handling
+        }
+    }
 
-    try
-    {
-        using var doc = JsonDocument.Parse(stdout);
-        return Results.Json(doc.RootElement.Clone());
-    }
-    catch
-    {
-        return Results.Problem("Invalid response from solver.");
-    }
+    // No usable stdout -> surface stderr (or a generic message)
+    var msg = string.IsNullOrWhiteSpace(stderr) ? "Unknown Python error (stderr was empty)" : stderr;
+    return Results.Problem($"Python error: {msg}");
 });
 
 app.Run();
