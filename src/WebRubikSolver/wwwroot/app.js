@@ -61,12 +61,12 @@ const STICKER_SIZE = CUBIE_SIZE * 0.92;
 const cubies = [];
 
 const FACE_DEF = [
-    { letter: 'U', normal: new THREE.Vector3(0, 1, 0) }, // Up  = +Y
-    { letter: 'R', normal: new THREE.Vector3(1, 0, 0) }, // Right = +X
-    { letter: 'F', normal: new THREE.Vector3(0, 0, 1) }, // Front = +Z
-    { letter: 'D', normal: new THREE.Vector3(0, -1, 0) }, // Down = -Y
-    { letter: 'L', normal: new THREE.Vector3(-1, 0, 0) }, // Left  = -X
-    { letter: 'B', normal: new THREE.Vector3(0, 0, -1) }  // Back  = -Z
+    { normal: new THREE.Vector3(0, 1, 0), label: 'U' },
+    { normal: new THREE.Vector3(1, 0, 0), label: 'R' },
+    { normal: new THREE.Vector3(0, 0, 1), label: 'F' },
+    { normal: new THREE.Vector3(0, -1, 0), label: 'D' },
+    { normal: new THREE.Vector3(-1, 0, 0), label: 'L' },
+    { normal: new THREE.Vector3(0, 0, -1), label: 'B' }
 ];
 
 function buildCubeSolved() {
@@ -216,14 +216,32 @@ moveButtons.forEach(b => b.addEventListener('click', async () => { await rotateL
 
 // ---------- Export/import facelets in URFDLB order ----------
 function exportFacelets() {
-  const faces = [
-    {letter:'U', normal:new THREE.Vector3(0,1,0),   u:new THREE.Vector3(1,0,0), v:new THREE.Vector3(0,0,-1)},
-    {letter:'R', normal:new THREE.Vector3(1,0,0),   u:new THREE.Vector3(0,1,0), v:new THREE.Vector3(0,0,-1)},
-    {letter:'F', normal:new THREE.Vector3(0,0,1),   u:new THREE.Vector3(1,0,0), v:new THREE.Vector3(0,1,0)},
-    {letter:'D', normal:new THREE.Vector3(0,-1,0),  u:new THREE.Vector3(1,0,0), v:new THREE.Vector3(0,0,1)},
-    {letter:'L', normal:new THREE.Vector3(-1,0,0),  u:new THREE.Vector3(0,1,0), v:new THREE.Vector3(0,0,1)},
-    {letter:'B', normal:new THREE.Vector3(0,0,-1),  u:new THREE.Vector3(-1,0,0),v:new THREE.Vector3(0,1,0)}
-  ];
+    const faces = [
+        {
+            letter: 'U', normal: new THREE.Vector3(0, 1, 0),
+            u: new THREE.Vector3(1, 0, 0), v: new THREE.Vector3(0, 0, -1)
+        }, // right=+X, down=-Z
+        {
+            letter: 'R', normal: new THREE.Vector3(1, 0, 0),
+            u: new THREE.Vector3(0, 0, -1), v: new THREE.Vector3(0, -1, 0)
+        }, // right=-Z, down=-Y
+        {
+            letter: 'F', normal: new THREE.Vector3(0, 0, 1),
+            u: new THREE.Vector3(1, 0, 0), v: new THREE.Vector3(0, -1, 0)
+        }, // right=+X, down=-Y
+        {
+            letter: 'D', normal: new THREE.Vector3(0, -1, 0),
+            u: new THREE.Vector3(1, 0, 0), v: new THREE.Vector3(0, 0, 1)
+        }, // right=+X, down=+Z
+        {
+            letter: 'L', normal: new THREE.Vector3(-1, 0, 0),
+            u: new THREE.Vector3(0, 0, 1), v: new THREE.Vector3(0, -1, 0)
+        }, // right=+Z, down=-Y
+        {
+            letter: 'B', normal: new THREE.Vector3(0, 0, -1),
+            u: new THREE.Vector3(-1, 0, 0), v: new THREE.Vector3(0, -1, 0)
+        }, // right=-X, down=-Y
+    ];
 
   const result = [];
   const worldPos = new THREE.Vector3();
@@ -302,6 +320,11 @@ function importFacelets(facelets) {
         }
       }
     });
+
+    if (items.length !== 9) {
+      throw new Error(`Expected 9 stickers on face ${f.letter}, got ${items.length}`);
+    }
+
     items.sort((a,b) => Math.abs(a.v-b.v)>1e-3 ? b.v-a.v : a.u-b.u);
     return items.map(x => x.mesh);
   });
