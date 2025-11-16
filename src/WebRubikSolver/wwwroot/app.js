@@ -61,12 +61,12 @@ const STICKER_SIZE = CUBIE_SIZE * 0.92;
 const cubies = [];
 
 const FACE_DEF = [
-  { normal: new THREE.Vector3( 0, 1, 0), label: 'U' },
-  { normal: new THREE.Vector3( 1, 0, 0), label: 'R' },
-  { normal: new THREE.Vector3( 0, 0, 1), label: 'F' },
-  { normal: new THREE.Vector3( 0,-1, 0), label: 'D' },
-  { normal: new THREE.Vector3(-1, 0, 0), label: 'L' },
-  { normal: new THREE.Vector3( 0, 0,-1), label: 'B' }
+    { letter: 'U', normal: new THREE.Vector3(0, 1, 0) }, // Up  = +Y
+    { letter: 'R', normal: new THREE.Vector3(1, 0, 0) }, // Right = +X
+    { letter: 'F', normal: new THREE.Vector3(0, 0, 1) }, // Front = +Z
+    { letter: 'D', normal: new THREE.Vector3(0, -1, 0) }, // Down = -Y
+    { letter: 'L', normal: new THREE.Vector3(-1, 0, 0) }, // Left  = -X
+    { letter: 'B', normal: new THREE.Vector3(0, 0, -1) }  // Back  = -Z
 ];
 
 function buildCubeSolved() {
@@ -252,15 +252,36 @@ function exportFacelets() {
 function importFacelets(facelets) {
   if (!facelets || facelets.length !== 54) return false;
   buildCubeSolved();
+    const faces = [
+        {
+            letter: 'U', normal: new THREE.Vector3(0, 1, 0),
+            uAxis: new THREE.Vector3(1, 0, 0), vAxis: new THREE.Vector3(0, 0, -1)
+        },
+        {
+            letter: 'R', normal: new THREE.Vector3(1, 0, 0),
+            uAxis: new THREE.Vector3(0, 0, -1), vAxis: new THREE.Vector3(0, -1, 0)
+        },
+        {
+            letter: 'F', normal: new THREE.Vector3(0, 0, 1),
+            uAxis: new THREE.Vector3(1, 0, 0), vAxis: new THREE.Vector3(0, -1, 0)
+        },
+        {
+            letter: 'D', normal: new THREE.Vector3(0, -1, 0),
+            uAxis: new THREE.Vector3(1, 0, 0), vAxis: new THREE.Vector3(0, 0, 1)
+        },
+        {
+            letter: 'L', normal: new THREE.Vector3(-1, 0, 0),
+            uAxis: new THREE.Vector3(0, 0, 1), vAxis: new THREE.Vector3(0, -1, 0)
+        },
+        {
+            letter: 'B', normal: new THREE.Vector3(0, 0, -1),
+            uAxis: new THREE.Vector3(-1, 0, 0), vAxis: new THREE.Vector3(0, -1, 0)
+        },
+    ];
 
-  const faces = [
-    {letter:'U', normal:new THREE.Vector3(0,1,0)},
-    {letter:'R', normal:new THREE.Vector3(1,0,0)},
-    {letter:'F', normal:new THREE.Vector3(0,0,1)},
-    {letter:'D', normal:new THREE.Vector3(0,-1,0)},
-    {letter:'L', normal:new THREE.Vector3(-1,0,0)},
-    {letter:'B', normal:new THREE.Vector3(0,0,-1)}
-  ];
+
+
+
 
   const faceMeshGrid = faces.map(f => {
     const items = [];
