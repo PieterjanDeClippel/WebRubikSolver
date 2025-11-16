@@ -82,12 +82,22 @@
         </div>
     </main>
 
+    <!-- map the bare specifier "three" to the module file -->
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.158.0/build/three.module.js"
+          }
+        }
+    </script>
+
     <script type="module">
-        import * as THREE from "https://unpkg.com/three@0.158.0/build/three.module.js";
+        import * as THREE from "three";
         import { OrbitControls } from "https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js";
+        // expose for your non-module app.js
         window.THREE = THREE;
         window.OrbitControls = OrbitControls;
-        import("./app.js");
+        import "./app.js";
     </script>
 </body>
 </html>
