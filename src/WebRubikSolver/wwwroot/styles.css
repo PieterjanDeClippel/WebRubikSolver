@@ -1,0 +1,68 @@
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+header {
+  grid-column: 1 / -1;
+  padding: 12px 16px;
+  border-bottom: 1px solid #8884;
+}
+
+.sidebar {
+  padding: 12px 14px;
+  border-right: 1px solid #8884;
+  display: flex;
+  gap: 18px;
+  flex-direction: column;
+}
+
+.stage { position: relative; padding: 10px; }
+#canvas {
+  width: 100%;
+  height: calc(100vh - 90px);
+  background: #0001;
+  border-radius: 12px;
+}
+.controls {
+  position: absolute; left: 16px; bottom: 16px;
+  background: #0006; color: #fff;
+  padding: 8px; border-radius: 10px;
+  display: inline-block; backdrop-filter: blur(4px);
+}
+.controls button {
+  margin: 2px; padding: 6px 10px; border-radius: 8px; border: none; cursor: pointer;
+}
+.controls .control-row { margin: 4px 0; }
+.controls .sp { display:inline-block; width: 12px; }
+
+.palette .swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin: 8px 0 6px;
+}
+.swatch {
+  height: 28px; border-radius: 6px; border: 2px solid #0005; cursor: pointer;
+}
+.swatch.active { outline: 3px solid #66f; }
+
+.ml { display: block; margin-top: 6px; }
+.hint { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+
+.io textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.row { display: flex; gap: 8px; margin-top: 6px; }
+button.solve { width: 100%; padding: 10px 12px; font-weight: 600; }
+
+#status { min-height: 1.6em; margin-top: 6px; }
+#solution { background: #0002; padding: 8px; border-radius: 8px; }

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Rubik Solver (.NET + Python) — Paint & Solve</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header>
+    <h1>Rubik's Cube — Paint & Solve</h1>
+    <p>Paint stickers, export a facelet string (URFDLB), solve, and watch it animate.</p>
+  </header>
+
+  <aside class="sidebar">
+    <section class="palette">
+      <h3>Palette</h3>
+      <div class="swatches">
+        <button class="swatch" data-label="U" title="U (white)"></button>
+        <button class="swatch" data-label="R" title="R (red)"></button>
+        <button class="swatch" data-label="F" title="F (green)"></button>
+        <button class="swatch" data-label="D" title="D (yellow)"></button>
+        <button class="swatch" data-label="L" title="L (orange)"></button>
+        <button class="swatch" data-label="B" title="B (blue)"></button>
+      </div>
+      <label class="ml"><input type="checkbox" id="useMl"> Use ML policy (if available)</label>
+      <div class="hint">Tip: centers are locked to their face color.</div>
+    </section>
+
+    <section class="io">
+      <h3>Facelets</h3>
+      <textarea id="facelets" rows="4" spellcheck="false"
+        placeholder="54 chars in URFDLB order (U×9, R×9, F×9, D×9, L×9, B×9)"></textarea>
+      <div class="row">
+        <button id="exportBtn">Export from cube</button>
+        <button id="importBtn">Import to cube</button>
+      </div>
+      <div class="row">
+        <button id="solvedBtn">Set solved</button>
+        <button id="clearBtn">Clear cube</button>
+      </div>
+    </section>
+
+    <section class="actions">
+      <h3>Solve</h3>
+      <button id="solveBtn" class="solve">Solve & Animate</button>
+      <div id="status"></div>
+      <pre id="solution"></pre>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div id="canvas"></div>
+    <div class="controls">
+      <div class="control-row">
+        <button data-move="U">U</button>
+        <button data-move="U'">U'</button>
+        <button data-move="U2">U2</button>
+        <span class="sp"></span>
+        <button data-move="D">D</button>
+        <button data-move="D'">D'</button>
+        <button data-move="D2">D2</button>
+      </div>
+      <div class="control-row">
+        <button data-move="L">L</button>
+        <button data-move="L'">L'</button>
+        <button data-move="L2">L2</button>
+        <span class="sp"></span>
+        <button data-move="R">R</button>
+        <button data-move="R'">R'</button>
+        <button data-move="R2">R2</button>
+      </div>
+      <div class="control-row">
+        <button data-move="F">F</button>
+        <button data-move="F'">F'</button>
+        <button data-move="F2">F2</button>
+        <span class="sp"></span>
+        <button data-move="B">B</button>
+        <button data-move="B'">B'</button>
+        <button data-move="B2">B2</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
