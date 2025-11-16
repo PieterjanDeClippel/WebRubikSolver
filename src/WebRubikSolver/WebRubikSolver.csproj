@@ -6,6 +6,6 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="wwwroot/**" CopyToOutputDirectory="Always" />
+    <Content Update="wwwroot/**" CopyToOutputDirectory="Always" />
   </ItemGroup>
 </Project>

@@ -15,21 +15,32 @@ RUN dotnet publish ./src/WebRubikSolver/WebRubikSolver.csproj -c Release -o /app
 # =========================
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 
-# Install Python + pip
-RUN apt-get update &&     apt-get install -y --no-install-recommends python3 python3-pip &&     rm -rf /var/lib/apt/lists/*
+# Python + venv tools
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python3-venv && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install required Python packages
-# Torch is optional because of image size; controlled via build-arg
+# Create a venv and install packages into it
+ENV PY_HOME=/opt/py
+RUN python3 -m venv $PY_HOME
+
+# Torch optional (large). Install into venv.
 ARG ENABLE_ML=false
 ENV ENABLE_ML=${ENABLE_ML}
 
-RUN pip3 install --no-cache-dir kociemba tqdm &&     if [ "$ENABLE_ML" = "true" ]; then         pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu ;     fi
+RUN $PY_HOME/bin/pip install --no-cache-dir kociemba tqdm && \
+    if [ "$ENABLE_ML" = "true" ]; then \
+        $PY_HOME/bin/pip install --no-cache-dir \
+            torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu ; \
+    fi
+
+# Make the venv Python first on PATH so "python3" resolves to it
+ENV PATH="$PY_HOME/bin:${PATH}"
 
 WORKDIR /app
 COPY --from=build /app/publish ./
 COPY ./python ./python
 
-# App settings
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
