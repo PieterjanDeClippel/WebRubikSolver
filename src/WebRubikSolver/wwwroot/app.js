@@ -1,37 +1,37 @@
 ﻿// ---------- UI references ----------
-const faceletsEl  = document.getElementById('facelets');
-const useMlEl     = document.getElementById('useMl');
-const exportBtn   = document.getElementById('exportBtn');
-const importBtn   = document.getElementById('importBtn');
-const solvedBtn   = document.getElementById('solvedBtn');
-const clearBtn    = document.getElementById('clearBtn');
-const solveBtn    = document.getElementById('solveBtn');
-const statusEl    = document.getElementById('status');
-const solutionEl  = document.getElementById('solution');
-const canvasEl    = document.getElementById('canvas');
+const faceletsEl = document.getElementById('facelets');
+const useMlEl = document.getElementById('useMl');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const solvedBtn = document.getElementById('solvedBtn');
+const clearBtn = document.getElementById('clearBtn');
+const solveBtn = document.getElementById('solveBtn');
+const statusEl = document.getElementById('status');
+const solutionEl = document.getElementById('solution');
+const canvasEl = document.getElementById('canvas');
 
 const moveButtons = Array.from(document.querySelectorAll('.controls button[data-move]'));
 const swatchButtons = Array.from(document.querySelectorAll('.swatch'));
 
 // ---------- Color / label mapping ----------
-const LABELS = ['U','R','F','D','L','B'];
+const LABELS = ['U', 'R', 'F', 'D', 'L', 'B'];
 const COLOR_HEX = {
-  U: 0xffffff,
-  R: 0xff3b30,
-  F: 0x34c759,
-  D: 0xffcc00,
-  L: 0xff9500,
-  B: 0x0a84ff
+    U: 0xffffff,
+    R: 0xff3b30,
+    F: 0x34c759,
+    D: 0xffcc00,
+    L: 0xff9500,
+    B: 0x0a84ff
 };
 let currentLabel = 'U';
 swatchButtons.forEach(btn => {
-  const lab = btn.dataset.label;
-  btn.style.background = '#' + COLOR_HEX[lab].toString(16).padStart(6,'0');
-  btn.addEventListener('click', () => setActiveSwatch(lab));
+    const lab = btn.dataset.label;
+    btn.style.background = '#' + COLOR_HEX[lab].toString(16).padStart(6, '0');
+    btn.addEventListener('click', () => setActiveSwatch(lab));
 });
 function setActiveSwatch(lab) {
-  currentLabel = lab;
-  swatchButtons.forEach(b => b.classList.toggle('active', b.dataset.label === lab));
+    currentLabel = lab;
+    swatchButtons.forEach(b => b.classList.toggle('active', b.dataset.label === lab));
 }
 setActiveSwatch('U');
 
@@ -70,46 +70,46 @@ const FACE_DEF = [
 ];
 
 function buildCubeSolved() {
-  while (cubeRoot.children.length) cubeRoot.remove(cubeRoot.children[0]);
-  cubies.length = 0;
+    while (cubeRoot.children.length) cubeRoot.remove(cubeRoot.children[0]);
+    cubies.length = 0;
 
-  const frameGeom = new THREE.BoxGeometry(1.02, 1.02, 1.02);
-  const frameMat  = new THREE.MeshBasicMaterial({ color: 0x111111, wireframe: true });
-  const frame = new THREE.Mesh(frameGeom, frameMat);
-  frame.name = 'frame';
-  cubeRoot.add(frame);
+    const frameGeom = new THREE.BoxGeometry(1.02, 1.02, 1.02);
+    const frameMat = new THREE.MeshBasicMaterial({ color: 0x111111, wireframe: true });
+    const frame = new THREE.Mesh(frameGeom, frameMat);
+    frame.name = 'frame';
+    cubeRoot.add(frame);
 
-  for (let x=-1; x<=1; x++) for (let y=-1; y<=1; y++) for (let z=-1; z<=1; z++) {
-    if (x===0 && y===0 && z===0) continue;
+    for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+        if (x === 0 && y === 0 && z === 0) continue;
 
-    const group = new THREE.Group();
-    group.position.set(x * CUBIE_SIZE, y * CUBIE_SIZE, z * CUBIE_SIZE);
-    const stickers = [];
+        const group = new THREE.Group();
+        group.position.set(x * CUBIE_SIZE, y * CUBIE_SIZE, z * CUBIE_SIZE);
+        const stickers = [];
 
-    FACE_DEF.forEach(({normal, label}) => {
-      const nx = normal.x, ny = normal.y, nz = normal.z;
-      if ((nx !== 0 && Math.sign(nx) !== Math.sign(x)) ||
-          (ny !== 0 && Math.sign(ny) !== Math.sign(y)) ||
-          (nz !== 0 && Math.sign(nz) !== Math.sign(z))) return;
-      if ((nx && x === 0) || (ny && y === 0) || (nz && z === 0)) return;
+        FACE_DEF.forEach(({ normal, label }) => {
+            const nx = normal.x, ny = normal.y, nz = normal.z;
+            if ((nx !== 0 && Math.sign(nx) !== Math.sign(x)) ||
+                (ny !== 0 && Math.sign(ny) !== Math.sign(y)) ||
+                (nz !== 0 && Math.sign(nz) !== Math.sign(z))) return;
+            if ((nx && x === 0) || (ny && y === 0) || (nz && z === 0)) return;
 
-      const plane = new THREE.PlaneGeometry(STICKER_SIZE, STICKER_SIZE);
-      const mat = new THREE.MeshPhongMaterial({ color: COLOR_HEX[label], side: THREE.DoubleSide });
-      const mesh = new THREE.Mesh(plane, mat);
-      mesh.userData.label = label;
-      mesh.userData.isCenter = (Math.abs(x) + Math.abs(y) + Math.abs(z) === 1);
-      const offset = new THREE.Vector3(nx, ny, nz).multiplyScalar(CUBIE_SIZE/2 + 0.001);
-      mesh.position.copy(offset);
-      const look = new THREE.Matrix4().lookAt(new THREE.Vector3(0,0,0), new THREE.Vector3(nx, ny, nz), new THREE.Vector3(0,1,0));
-      mesh.quaternion.setFromRotationMatrix(look);
-      group.add(mesh);
+            const plane = new THREE.PlaneGeometry(STICKER_SIZE, STICKER_SIZE);
+            const mat = new THREE.MeshPhongMaterial({ color: COLOR_HEX[label], side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(plane, mat);
+            mesh.userData.label = label;
+            mesh.userData.isCenter = (Math.abs(x) + Math.abs(y) + Math.abs(z) === 1);
+            const offset = new THREE.Vector3(nx, ny, nz).multiplyScalar(CUBIE_SIZE / 2 + 0.001);
+            mesh.position.copy(offset);
+            const look = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), new THREE.Vector3(nx, ny, nz), new THREE.Vector3(0, 1, 0));
+            mesh.quaternion.setFromRotationMatrix(look);
+            group.add(mesh);
 
-      stickers.push({ mesh, normal: normal.clone(), get label(){return mesh.userData.label;}, set label(v){mesh.userData.label=v;} });
-    });
+            stickers.push({ mesh, normal: normal.clone(), get label() { return mesh.userData.label; }, set label(v) { mesh.userData.label = v; } });
+        });
 
-    cubeRoot.add(group);
-    cubies.push({ group, stickers });
-  }
+        cubeRoot.add(group);
+        cubies.push({ group, stickers });
+    }
 }
 buildCubeSolved();
 
@@ -118,29 +118,29 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
-  const intersects = raycaster.intersectObjects(cubeRoot.children, true);
-  if (intersects.length) {
-    const obj = intersects[0].object;
-    if (obj.userData && obj.userData.label) {
-      if (obj.userData.isCenter) return;
-      obj.userData.label = currentLabel;
-      obj.material.color.setHex(COLOR_HEX[currentLabel]);
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(cubeRoot.children, true);
+    if (intersects.length) {
+        const obj = intersects[0].object;
+        if (obj.userData && obj.userData.label) {
+            if (obj.userData.isCenter) return;
+            obj.userData.label = currentLabel;
+            obj.material.color.setHex(COLOR_HEX[currentLabel]);
+        }
     }
-  }
 });
 
 // ---------- Move animation (true per-layer rotation) ----------
 const MOVE_AXIS = {
-  U: new THREE.Vector3(0,1,0),
-  D: new THREE.Vector3(0,-1,0),
-  R: new THREE.Vector3(1,0,0),
-  L: new THREE.Vector3(-1,0,0),
-  F: new THREE.Vector3(0,0,1),
-  B: new THREE.Vector3(0,0,-1),
+    U: new THREE.Vector3(0, 1, 0),
+    D: new THREE.Vector3(0, -1, 0),
+    R: new THREE.Vector3(1, 0, 0),
+    L: new THREE.Vector3(-1, 0, 0),
+    F: new THREE.Vector3(0, 0, 1),
+    B: new THREE.Vector3(0, 0, -1),
 };
 
 // Round to grid index (-1, 0, +1)
@@ -154,75 +154,132 @@ const LAYER_TEST = {
     B: p => GRID(p.z) === -1,
 };
 
-function rotateLayer(move) {
-  return new Promise(resolve => {
-    const face = move[0];
-    const suf = move.length > 1 ? move.slice(1) : "";
-    const quarters = suf === "2" ? 2 : 1;
-    const prime = suf === "'";
-    let axis = MOVE_AXIS[face].clone();
-    let sign = prime ? -1 : 1;
+// ----- Move queue (serialize animations) -----
+const moveQueue = [];
+let draining = false;
+let __queueDriving = false;
+const idleResolvers = [];
 
-    const temp = new THREE.Group();
-    temp.position.set(0, 0, 0); // rotate about cube origin
-    cubeRoot.add(temp);
+// Enqueue a single move string, e.g. "R", "U'", "F2"
+function enqueueMove(move) {
+    moveQueue.push(move);
+    drainQueue();
+}
 
-    const targets = [];
-    const wp = new THREE.Vector3();
-    const lp = new THREE.Vector3();
-    for (const c of cubies) {
-      c.group.getWorldPosition(wp);
-      lp.copy(wp);
-      cubeRoot.worldToLocal(lp); // local coords relative to cubeRoot
-      if (LAYER_TEST[face](lp)) {
-        temp.attach(c.group); // reparent into rotating temp group
-        targets.push(c);
-      }
+// Enqueue multiple moves and return a promise that resolves when all finish
+function runMoves(seq) {
+    if (Array.isArray(seq)) moveQueue.push(...seq);
+    drainQueue();
+    return waitForIdle();
+}
+
+function waitForIdle() {
+    if (!draining && moveQueue.length === 0) return Promise.resolve();
+    return new Promise((res) => idleResolvers.push(res));
+}
+
+async function drainQueue() {
+    if (draining) return;
+    draining = true;
+
+    try {
+        while (moveQueue.length) {
+            const next = moveQueue.shift();
+            if (!next) continue;
+            __queueDriving = true;
+            await rotateLayer(next, /*__fromQueue:*/ true);
+            __queueDriving = false;
+        }
+    } catch (err) {
+        console.error('Move queue error:', err);
+    } finally {
+        draining = false;
+        // resolve any waiters
+        while (idleResolvers.length) idleResolvers.shift()();
+    }
+}
+
+function rotateLayer(move, __fromQueue = false) {
+    // If someone calls rotateLayer directly, reroute it into the queue
+    if (!__fromQueue) {
+        enqueueMove(move);
+        return waitForIdle(); // resolve when it actually finishes via the queue
     }
 
-    // Optional: sanity log
-    console.log(`rotateLayer ${move}: selected ${targets.length} cubies`);
+    return new Promise(resolve => {
+        const face = move[0];
+        const suf = move.length > 1 ? move.slice(1) : "";
+        const quarters = suf === "2" ? 2 : 1;
+        const prime = suf === "'";
+        let axis = MOVE_AXIS[face].clone();
+        let sign = prime ? -1 : 1;
 
-    const total = quarters * (Math.PI/2) * sign;
-    const duration = 180 * quarters;
-    const frames = Math.max(24 * quarters, 1);
-    const delta = total / frames;
-    let i = 0;
-    const id = setInterval(() => {
-      temp.rotateOnWorldAxis(axis, delta);
-      i++;
-      if (i >= frames) {
-        clearInterval(id);
-        targets.forEach(c => { cubeRoot.attach(c.group); snapCubieTransform(c.group); });
-        cubeRoot.remove(temp);
-        resolve();
-      }
-    }, duration / frames);
-  });
+        const temp = new THREE.Group();
+        temp.position.set(0, 0, 0); // rotate about cube origin
+        cubeRoot.add(temp);
+
+        const targets = [];
+        const wp = new THREE.Vector3();
+        const lp = new THREE.Vector3();
+        for (const c of cubies) {
+            c.group.getWorldPosition(wp);
+            lp.copy(wp);
+            cubeRoot.worldToLocal(lp); // local coords relative to cubeRoot
+            if (LAYER_TEST[face](lp)) {
+                temp.attach(c.group); // reparent into rotating temp group
+                targets.push(c);
+            }
+        }
+
+        // Optional: sanity log
+        console.log(`rotateLayer ${move}: selected ${targets.length} cubies`);
+
+        const total = quarters * (Math.PI / 2) * sign;
+        const duration = 180 * quarters;
+        const frames = Math.max(24 * quarters, 1);
+        const delta = total / frames;
+        let i = 0;
+        const id = setInterval(() => {
+            temp.rotateOnWorldAxis(axis, delta);
+            i++;
+            if (i >= frames) {
+                clearInterval(id);
+                targets.forEach(c => { cubeRoot.attach(c.group); snapCubieTransform(c.group); });
+                cubeRoot.remove(temp);
+                resolve();
+            }
+        }, duration / frames);
+    });
 }
 
 function snapCubieTransform(group) {
-  const m = new THREE.Matrix4().extractRotation(group.matrixWorld);
-  const axes = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-  m.extractBasis(axes[0], axes[1], axes[2]);
-  axes.forEach(a => a.set(Math.round(a.x), Math.round(a.y), Math.round(a.z)).normalize());
-  const rot = new THREE.Matrix4().makeBasis(axes[0], axes[1], axes[2]);
+    const m = new THREE.Matrix4().extractRotation(group.matrixWorld);
+    const axes = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    m.extractBasis(axes[0], axes[1], axes[2]);
+    axes.forEach(a => a.set(Math.round(a.x), Math.round(a.y), Math.round(a.z)).normalize());
+    const rot = new THREE.Matrix4().makeBasis(axes[0], axes[1], axes[2]);
 
-  const parentInv = new THREE.Matrix4().copy(cubeRoot.matrixWorld).invert();
-  const local = new THREE.Matrix4().multiplyMatrices(parentInv, group.matrixWorld);
-  const pos = new THREE.Vector3().setFromMatrixPosition(local);
-  pos.set(Math.round(pos.x * 3) / 3, Math.round(pos.y * 3) / 3, Math.round(pos.z * 3) / 3);
+    const parentInv = new THREE.Matrix4().copy(cubeRoot.matrixWorld).invert();
+    const local = new THREE.Matrix4().multiplyMatrices(parentInv, group.matrixWorld);
+    const pos = new THREE.Vector3().setFromMatrixPosition(local);
+    pos.set(Math.round(pos.x * 3) / 3, Math.round(pos.y * 3) / 3, Math.round(pos.z * 3) / 3);
 
-  group.matrix.identity();
-  group.position.copy(pos);
-  group.setRotationFromMatrix(rot);
+    group.matrix.identity();
+    group.position.copy(pos);
+    group.setRotationFromMatrix(rot);
 }
 
 async function animateMoves(moves) {
-  for (const mv of moves) await rotateLayer(mv);
+    for (const mv of moves) await rotateLayer(mv);
 }
 
-moveButtons.forEach(b => b.addEventListener('click', async () => { await rotateLayer(b.dataset.move); }));
+moveButtons.forEach(b => b.addEventListener('click', () => {
+    const move = btn.dataset.move;
+    enqueueMove(move);
+    statusEl.textContent = `Queued: ${move}  (in flight: ${draining ? 'yes' : 'no'}, pending: ${moveQueue.length})`;
+
+    //await rotateLayer(b.dataset.move);
+}));
 
 // ---------- Export/import facelets in URFDLB order ----------
 // === Canonical URFDLB orientation (Kociemba) ===
@@ -306,66 +363,69 @@ function importFacelets(facelets) {
 
 // ---------- REST call ----------
 async function callSolve(facelets, useMl) {
-  const resp = await fetch('/api/solve', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ facelets, useMl })
-  });
-  const json = await resp.json();
-  if (!resp.ok) throw new Error(json.error || 'Solve failed');
-  return json;
+    const resp = await fetch('/api/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ facelets, useMl })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || 'Solve failed');
+    return json;
 }
 
 // ---------- Render loop ----------
 function render() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(render); }
 render();
 window.addEventListener('resize', () => {
-  const w = canvasEl.clientWidth, h = canvasEl.clientHeight;
-  camera.aspect = w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h);
+    const w = canvasEl.clientWidth, h = canvasEl.clientHeight;
+    camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
 });
 
 // ---------- Buttons ----------
 document.querySelectorAll('.controls button[data-move]').forEach(b => b.addEventListener('click', async () => {
-  debugger;
-  await rotateLayer(b.dataset.move);
+    debugger;
+    await rotateLayer(b.dataset.move);
 }));
 
 exportBtn.addEventListener('click', () => { faceletsEl.value = exportFacelets(); });
 importBtn.addEventListener('click', () => {
-  const s = faceletsEl.value.trim();
-  statusEl.textContent = (s.length===54 && importFacelets(s)) ? 'Imported facelets.' : 'Provide 54 chars.';
+    const s = faceletsEl.value.trim();
+    statusEl.textContent = (s.length === 54 && importFacelets(s)) ? 'Imported facelets.' : 'Provide 54 chars.';
 });
 solvedBtn.addEventListener('click', () => {
-  buildCubeSolved();
-  faceletsEl.value = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
-  statusEl.textContent = 'Set solved.';
+    buildCubeSolved();
+    faceletsEl.value = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
+    statusEl.textContent = 'Set solved.';
 });
 clearBtn.addEventListener('click', () => {
-  cubeRoot.traverse(obj => {
-    if (obj.isMesh && obj.userData && obj.userData.label && !obj.userData.isCenter) {
-      obj.userData.label = 'U';
-      obj.material.color.setHex(COLOR_HEX['U']);
-    }
-  });
-  faceletsEl.value = '';
-  statusEl.textContent = 'Cleared.';
+    cubeRoot.traverse(obj => {
+        if (obj.isMesh && obj.userData && obj.userData.label && !obj.userData.isCenter) {
+            obj.userData.label = 'U';
+            obj.material.color.setHex(COLOR_HEX['U']);
+        }
+    });
+    faceletsEl.value = '';
+    statusEl.textContent = 'Cleared.';
 });
 solveBtn.addEventListener('click', async () => {
-  try {
-    const facelets = exportFacelets();
-    faceletsEl.value = facelets;
-    statusEl.textContent = 'Solving...';
-    solutionEl.textContent = '';
-    const json = await callSolve(facelets, useMlEl.checked);
-    const moves = json.moves || [];
-    solutionEl.textContent = `Length: ${json.length}\nMoves: ${moves.join(' ')}`;
-    statusEl.textContent = 'Animating...';
-    await animateMoves(moves);
-    statusEl.textContent = 'Done.';
-  } catch (e) {
-    console.error(e);
-    statusEl.textContent = e.message || 'Error.';
-  }
+    try {
+        const facelets = exportFacelets();
+        faceletsEl.value = facelets;
+        statusEl.textContent = 'Solving...';
+        solutionEl.textContent = '';
+
+        const json = await callSolve(facelets, useMlEl.checked);
+        const moves = json.moves || [];
+        solutionEl.textContent = `Length: ${json.length}\nMoves: ${moves.join(' ')}`;
+
+        statusEl.textContent = 'Animating...';
+        //await animateMoves(moves);
+        await runMoves(moves);
+        statusEl.textContent = 'Done.';
+    } catch (e) {
+        console.error(e);
+        statusEl.textContent = e.message || 'Error.';
+    }
 });
 
 // Prefill with solved
