@@ -1,4 +1,4 @@
-// ---------- UI references ----------
+﻿// ---------- UI references ----------
 const faceletsEl  = document.getElementById('facelets');
 const useMlEl     = document.getElementById('useMl');
 const exportBtn   = document.getElementById('exportBtn');
@@ -61,12 +61,12 @@ const STICKER_SIZE = CUBIE_SIZE * 0.92;
 const cubies = [];
 
 const FACE_DEF = [
-  { normal: new THREE.Vector3( 0, 1, 0), label: 'U' },
-  { normal: new THREE.Vector3( 1, 0, 0), label: 'R' },
-  { normal: new THREE.Vector3( 0, 0, 1), label: 'F' },
-  { normal: new THREE.Vector3( 0,-1, 0), label: 'D' },
-  { normal: new THREE.Vector3(-1, 0, 0), label: 'L' },
-  { normal: new THREE.Vector3( 0, 0,-1), label: 'B' }
+    { normal: new THREE.Vector3(0, 1, 0), label: 'U' },
+    { normal: new THREE.Vector3(1, 0, 0), label: 'R' },
+    { normal: new THREE.Vector3(0, 0, 1), label: 'F' },
+    { normal: new THREE.Vector3(0, -1, 0), label: 'D' },
+    { normal: new THREE.Vector3(-1, 0, 0), label: 'L' },
+    { normal: new THREE.Vector3(0, 0, -1), label: 'B' }
 ];
 
 function buildCubeSolved() {
@@ -215,88 +215,83 @@ async function animateMoves(moves) {
 moveButtons.forEach(b => b.addEventListener('click', async () => { await rotateLayer(b.dataset.move); }));
 
 // ---------- Export/import facelets in URFDLB order ----------
-function exportFacelets() {
-  const faces = [
-    {letter:'U', normal:new THREE.Vector3(0,1,0),   u:new THREE.Vector3(1,0,0), v:new THREE.Vector3(0,0,-1)},
-    {letter:'R', normal:new THREE.Vector3(1,0,0),   u:new THREE.Vector3(0,1,0), v:new THREE.Vector3(0,0,-1)},
-    {letter:'F', normal:new THREE.Vector3(0,0,1),   u:new THREE.Vector3(1,0,0), v:new THREE.Vector3(0,1,0)},
-    {letter:'D', normal:new THREE.Vector3(0,-1,0),  u:new THREE.Vector3(1,0,0), v:new THREE.Vector3(0,0,1)},
-    {letter:'L', normal:new THREE.Vector3(-1,0,0),  u:new THREE.Vector3(0,1,0), v:new THREE.Vector3(0,0,1)},
-    {letter:'B', normal:new THREE.Vector3(0,0,-1),  u:new THREE.Vector3(-1,0,0),v:new THREE.Vector3(0,1,0)}
-  ];
+// === Canonical URFDLB orientation (Kociemba) ===
+// For each face: normal = face normal in world space
+// u = "to the right" vector on that face; v = "down" vector on that face
+const ORIENT = [
+    { letter: 'U', normal: new THREE.Vector3(0, 1, 0), u: new THREE.Vector3(1, 0, 0), v: new THREE.Vector3(0, 0, -1) },
+    { letter: 'R', normal: new THREE.Vector3(1, 0, 0), u: new THREE.Vector3(0, 0, -1), v: new THREE.Vector3(0, -1, 0) },
+    { letter: 'F', normal: new THREE.Vector3(0, 0, 1), u: new THREE.Vector3(1, 0, 0), v: new THREE.Vector3(0, -1, 0) },
+    { letter: 'D', normal: new THREE.Vector3(0, -1, 0), u: new THREE.Vector3(1, 0, 0), v: new THREE.Vector3(0, 0, 1) },
+    { letter: 'L', normal: new THREE.Vector3(-1, 0, 0), u: new THREE.Vector3(0, 0, 1), v: new THREE.Vector3(0, -1, 0) },
+    { letter: 'B', normal: new THREE.Vector3(0, 0, -1), u: new THREE.Vector3(-1, 0, 0), v: new THREE.Vector3(0, -1, 0) },
+];
 
-  const result = [];
-  const worldPos = new THREE.Vector3();
-  const worldNormal = new THREE.Vector3();
+// Small helpers (avoid GC churn)
+const _wp = new THREE.Vector3();
+const _wn = new THREE.Vector3();
+const _q = new THREE.Quaternion();
 
-  for (const f of faces) {
-    const stickersOnFace = [];
+// Returns the 9 sticker meshes for `face` in proper 3x3 order:
+// row-major, top→bottom (v descending), left→right (u ascending)
+function collectFaceStickers(face) {
+    const items = [];
     cubeRoot.traverse(obj => {
-      if (obj.isMesh && obj.userData && obj.userData.label) {
-        obj.getWorldPosition(worldPos);
-        worldNormal.set(0,0,1).applyQuaternion(obj.getWorldQuaternion(new THREE.Quaternion()));
-        if (worldNormal.dot(f.normal) > 0.99) {
-          const u = worldPos.dot(f.u);
-          const v = worldPos.dot(f.v);
-          stickersOnFace.push({ u, v, label: obj.userData.label });
+        if (obj.isMesh && obj.userData && obj.userData.label) {
+            obj.getWorldPosition(_wp);
+            _wn.set(0, 0, 1).applyQuaternion(obj.getWorldQuaternion(_q)); // plane's outward normal
+            if (_wn.dot(face.normal) > 0.99) {
+                const u = _wp.dot(face.u);
+                const v = _wp.dot(face.v);
+                items.push({ mesh: obj, u, v });
+            }
         }
-      }
     });
-    stickersOnFace.sort((a,b) => Math.abs(a.v-b.v)>1e-3 ? b.v-a.v : a.u-b.u);
-    for (const s of stickersOnFace) result.push(s.label);
-  }
-
-  return result.join('');
+    // Expect exactly 9
+    if (items.length !== 9) {
+        console.warn(`collectFaceStickers(${face.letter}) expected 9, got ${items.length}`);
+    }
+    // Sort: v desc (top→bottom), then u asc (left→right)
+    items.sort((a, b) => {
+        if (Math.abs(a.v - b.v) > 1e-3) return b.v - a.v;
+        return a.u - b.u;
+    });
+    return items.map(x => x.mesh);
 }
 
-function importFacelets(facelets) {
-  if (!facelets || facelets.length !== 54) return false;
-  buildCubeSolved();
-
-  const faces = [
-    {letter:'U', normal:new THREE.Vector3(0,1,0)},
-    {letter:'R', normal:new THREE.Vector3(1,0,0)},
-    {letter:'F', normal:new THREE.Vector3(0,0,1)},
-    {letter:'D', normal:new THREE.Vector3(0,-1,0)},
-    {letter:'L', normal:new THREE.Vector3(-1,0,0)},
-    {letter:'B', normal:new THREE.Vector3(0,0,-1)}
-  ];
-
-  const faceMeshGrid = faces.map(f => {
-    const items = [];
-    const uAxis = (f.letter==='U'||f.letter==='D'||f.letter==='F') ? new THREE.Vector3(1,0,0) :
-                  (f.letter==='B') ? new THREE.Vector3(-1,0,0) : new THREE.Vector3(0,1,0);
-    const vAxis = (f.letter==='U') ? new THREE.Vector3(0,0,-1) :
-                  (f.letter==='D') ? new THREE.Vector3(0,0,1) :
-                  (f.letter==='F'||f.letter==='B') ? new THREE.Vector3(0,1,0) :
-                  (f.letter==='R') ? new THREE.Vector3(0,0,-1) : new THREE.Vector3(0,0,1);
-    const worldPos = new THREE.Vector3();
-    const worldNormal = new THREE.Vector3();
-    cubeRoot.traverse(obj => {
-      if (obj.isMesh && obj.userData && obj.userData.label) {
-        obj.getWorldPosition(worldPos);
-        worldNormal.set(0,0,1).applyQuaternion(obj.getWorldQuaternion(new THREE.Quaternion()));
-        if (worldNormal.dot(f.normal) > 0.99) {
-          items.push({ mesh: obj, u: worldPos.dot(uAxis), v: worldPos.dot(vAxis) });
-        }
-      }
-    });
-    items.sort((a,b) => Math.abs(a.v-b.v)>1e-3 ? b.v-a.v : a.u-b.u);
-    return items.map(x => x.mesh);
-  });
-
-  let idx = 0;
-  for (let fi=0; fi<6; fi++) {
-    for (let s=0; s<9; s++) {
-      const lab = facelets[idx++];
-      const mesh = faceMeshGrid[fi][s];
-      if (!mesh.userData.isCenter) {
-        mesh.userData.label = lab;
-        mesh.material.color.setHex(COLOR_HEX[lab] || 0x222222);
-      }
+// === Export: cube -> 54-char URFDLB string ===
+function exportFacelets() {
+    const out = [];
+    for (const face of ORIENT) {
+        const meshes = collectFaceStickers(face);
+        for (const m of meshes) out.push(m.userData.label);
     }
-  }
-  return true;
+    return out.join('');
+}
+
+// === Import: 54-char URFDLB string -> paint cube ===
+function importFacelets(facelets) {
+    if (!facelets || facelets.length !== 54) return false;
+
+    // repaint in-place (do NOT rebuild geometry) so the orientation stays intact
+    let idx = 0;
+    for (const face of ORIENT) {
+        const meshes = collectFaceStickers(face);
+        if (meshes.length !== 9) throw new Error(`Expected 9 stickers on ${face.letter}, got ${meshes.length}`);
+        for (let i = 0; i < 9; i++) {
+            const ch = facelets[idx++];
+            const m = meshes[i];
+            if (!m.userData.isCenter) {
+                m.userData.label = ch;
+                m.material.color.setHex(COLOR_HEX[ch]);
+            } else {
+                // keep centers locked to their face letter
+                m.userData.label = face.letter;
+                m.material.color.setHex(COLOR_HEX[face.letter]);
+            }
+        }
+    }
+    return true;
 }
 
 // ---------- REST call ----------
