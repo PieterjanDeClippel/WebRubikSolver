@@ -299,6 +299,29 @@ const _wp = new THREE.Vector3();
 const _wn = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 
+// Quantize a list of scalar coordinates into grid indices 0,1,2
+function quantizeToGrid(values, descending = false) {
+    // unique-ish values with tolerance
+    const tol = 1e-4;
+    const uniq = [];
+    for (const v of values) {
+        if (!uniq.some(u => Math.abs(u - v) < tol)) uniq.push(v);
+    }
+    // sort to get row/col bands
+    uniq.sort((a, b) => a - b);
+    if (descending) uniq.reverse(); // top row first for v
+
+    // map value -> index 0..2 by nearest band
+    return values.map(v => {
+        let best = 0, bestd = Infinity;
+        for (let i = 0; i < uniq.length; i++) {
+            const d = Math.abs(v - uniq[i]);
+            if (d < bestd) { best = i; bestd = d; }
+        }
+        return best; // 0,1,2
+    });
+}
+
 // Returns the 9 sticker meshes for `face` in proper 3x3 order:
 // row-major, top→bottom (v descending), left→right (u ascending)
 function collectFaceStickers(face) {
@@ -316,14 +339,36 @@ function collectFaceStickers(face) {
     });
     // Expect exactly 9
     if (items.length !== 9) {
-        console.warn(`collectFaceStickers(${face.letter}) expected 9, got ${items.length}`);
+        throw new Error(`Expected 9 stickers on face ${face.letter}, got ${items.length}`);
     }
-    // Sort: v desc (top→bottom), then u asc (left→right)
-    items.sort((a, b) => {
-        if (Math.abs(a.v - b.v) > 1e-3) return b.v - a.v;
-        return a.u - b.u;
-    });
-    return items.map(x => x.mesh);
+
+    //// Sort: v desc (top→bottom), then u asc (left→right)
+    //items.sort((a, b) => {
+    //    if (Math.abs(a.v - b.v) > 1e-3) return b.v - a.v;
+    //    return a.u - b.u;
+    //});
+    //return items.map(x => x.mesh);
+
+
+    // Quantize to bands to avoid float ordering errors after rotations
+    const uVals = items.map(it => it.u);
+    const vVals = items.map(it => it.v);
+    const uIdx = quantizeToGrid(uVals, /*descending=*/false); // left->right
+    const vIdx = quantizeToGrid(vVals, /*descending=*/true);  // top->bottom
+
+    const grid = new Array(9);
+    for (let i = 0; i < 9; i++) {
+        const ui = uIdx[i];      // 0..2 (col)
+        const vi = vIdx[i];      // 0..2 (row)
+        const idx = vi * 3 + ui; // row-major
+        grid[idx] = items[i].mesh;
+    }
+
+    // Sanity: center must be present at index 4
+    if (!grid[4] || !grid[4].userData) {
+        throw new Error(`Center missing/misclassified on face ${face.letter}`);
+    }
+    return grid;
 }
 
 // === Export: cube -> 54-char URFDLB string ===
