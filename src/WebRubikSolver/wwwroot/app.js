@@ -44,7 +44,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(canvasEl.clientWidth, canvasEl.clientHeight);
 canvasEl.appendChild(renderer.domElement);
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.7));

@@ -83,7 +83,7 @@
     </main>
 
     <!-- map the bare specifier "three" to the module file -->
-    <script type="importmap">
+    <!--<script type="importmap">
         {
           "imports": {
             "three": "https://unpkg.com/three@0.158.0/build/three.module.js"
@@ -98,6 +98,22 @@
         window.THREE = THREE;
         window.OrbitControls = OrbitControls;
         import "./app.js";
+    </script>-->
+
+    <!-- Three.js + OrbitControls (ESM via esm.sh) -->
+    <script type="module">
+        import * as THREE from "https://esm.sh/three@0.158.0";
+        import { OrbitControls } from "https://esm.sh/three@0.158.0/examples/jsm/controls/OrbitControls.js";
+
+        // Expose them globally so non-module app.js can use them
+        window.THREE = THREE;
+        window.OrbitControls = OrbitControls;
+
+        // Dynamically load app.js AFTER globals are ready
+        const script = document.createElement("script");
+        script.src = "app.js";
+        document.body.appendChild(script);
     </script>
+
 </body>
 </html>
