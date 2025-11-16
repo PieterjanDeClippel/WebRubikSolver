@@ -2,6 +2,15 @@
 # docker build -t rubik-solver:lite .
 # docker run --rm -p 8080:8080 rubik-solver:lite
 # Open http://localhost:8080
+
+# Example
+# UUFUBDFLL
+# RDFRURRBB
+# DFLLFURDF
+# UDDUBLRFU
+# LRLFLDDRL
+# BBLBBLUBF
+
 # =========================
 
 
