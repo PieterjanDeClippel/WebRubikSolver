@@ -1,5 +1,9 @@
 # =========================
+# No torch
 # docker build -t rubik-solver:lite .
+# With torch
+# docker build -t rubik-solver:lite --build-arg ENABLE_ML=false .
+
 # docker run --rm -p 8080:8080 rubik-solver:lite
 # Open http://localhost:8080
 

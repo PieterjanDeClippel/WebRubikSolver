@@ -7,6 +7,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A49045D1-5D16-4805-B4B2-B04C6946C290}"
 	ProjectSection(SolutionItems) = preProject
 		Dockerfile = Dockerfile
+		python\rubik_ml_solver.py = python\rubik_ml_solver.py
 	EndProjectSection
 EndProject
 Global

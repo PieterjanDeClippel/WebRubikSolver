@@ -99,19 +99,22 @@ def kociemba_solve(facelets: str) -> List[str]:
     sol = kociemba.solve(facelets)
     return sol.split()
 
-class PolicyNet(nn.Module):
-    def __init__(self, hidden=512, dropout=0.1):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(324, hidden),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden, hidden),
-            nn.ReLU(),
-            nn.Linear(hidden, len(ALL_MOVES))
-        )
-    def forward(self, x):
-        return self.net(x)
+if TORCH_AVAILABLE:
+    class PolicyNet(nn.Module):
+        def __init__(self, hidden=512, dropout=0.1):
+            super().__init__()
+            self.net = nn.Sequential(
+                nn.Linear(324, hidden),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden, hidden),
+                nn.ReLU(),
+                nn.Linear(hidden, len(ALL_MOVES))
+            )
+        def forward(self, x):
+            return self.net(x)
+else:
+    PolicyNet = None
 
 @torch.no_grad()
 def policy_beam_solve(start: str, model_path="policy.pt", beam_size=64, max_depth=30, device="cpu") -> Optional[List[str]]:
