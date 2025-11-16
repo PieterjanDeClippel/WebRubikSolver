@@ -142,13 +142,16 @@ const MOVE_AXIS = {
   F: new THREE.Vector3(0,0,1),
   B: new THREE.Vector3(0,0,-1),
 };
+
+// Round to grid index (-1, 0, +1)
+const GRID = (v) => Math.round(v * 3);
 const LAYER_TEST = {
-  U: p => p.y >  1/3 - 1e-6,
-  D: p => p.y < -1/3 + 1e-6,
-  R: p => p.x >  1/3 - 1e-6,
-  L: p => p.x < -1/3 + 1e-6,
-  F: p => p.z >  1/3 - 1e-6,
-  B: p => p.z < -1/3 + 1e-6,
+    U: p => GRID(p.y) === 1,
+    D: p => GRID(p.y) === -1,
+    R: p => GRID(p.x) === 1,
+    L: p => GRID(p.x) === -1,
+    F: p => GRID(p.z) === 1,
+    B: p => GRID(p.z) === -1,
 };
 
 function rotateLayer(move) {
@@ -161,17 +164,24 @@ function rotateLayer(move) {
     let sign = prime ? -1 : 1;
 
     const temp = new THREE.Group();
+    temp.position.set(0, 0, 0); // rotate about cube origin
     cubeRoot.add(temp);
 
     const targets = [];
+    const wp = new THREE.Vector3();
+    const lp = new THREE.Vector3();
     for (const c of cubies) {
-      const wp = new THREE.Vector3();
       c.group.getWorldPosition(wp);
-      if (LAYER_TEST[face](wp)) {
-        temp.attach(c.group);
+      lp.copy(wp);
+      cubeRoot.worldToLocal(lp); // local coords relative to cubeRoot
+      if (LAYER_TEST[face](lp)) {
+        temp.attach(c.group); // reparent into rotating temp group
         targets.push(c);
       }
     }
+
+    // Optional: sanity log
+    console.log(`rotateLayer ${move}: selected ${targets.length} cubies`);
 
     const total = quarters * (Math.PI/2) * sign;
     const duration = 180 * quarters;
@@ -321,6 +331,7 @@ window.addEventListener('resize', () => {
 
 // ---------- Buttons ----------
 document.querySelectorAll('.controls button[data-move]').forEach(b => b.addEventListener('click', async () => {
+  debugger;
   await rotateLayer(b.dataset.move);
 }));
 
