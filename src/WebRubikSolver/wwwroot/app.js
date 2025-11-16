@@ -84,6 +84,10 @@ function buildCubeSolved() {
 
         const group = new THREE.Group();
         group.position.set(x * CUBIE_SIZE, y * CUBIE_SIZE, z * CUBIE_SIZE);
+        // Logical state
+        const logicalPosition = new THREE.Vector3(x, y, z);
+        const logicalQuaternion = new THREE.Quaternion();
+
         const stickers = [];
 
         FACE_DEF.forEach(({ normal, label }) => {
@@ -97,6 +101,7 @@ function buildCubeSolved() {
             const mat = new THREE.MeshPhongMaterial({ color: COLOR_HEX[label], side: THREE.DoubleSide });
             const mesh = new THREE.Mesh(plane, mat);
             mesh.userData.label = label;
+            mesh.userData.normal = normal.clone(); // Store the initial normal
             mesh.userData.isCenter = (Math.abs(x) + Math.abs(y) + Math.abs(z) === 1);
             const offset = new THREE.Vector3(nx, ny, nz).multiplyScalar(CUBIE_SIZE / 2 + 0.001);
             mesh.position.copy(offset);
@@ -108,7 +113,7 @@ function buildCubeSolved() {
         });
 
         cubeRoot.add(group);
-        cubies.push({ group, stickers });
+        cubies.push({ group, stickers, logicalPosition, logicalQuaternion });
     }
 }
 buildCubeSolved();
@@ -145,13 +150,13 @@ const MOVE_AXIS = {
 
 // Round to grid index (-1, 0, +1)
 const GRID = (v) => Math.round(v * 3);
-const LAYER_TEST = {
-    U: p => GRID(p.y) === 1,
-    D: p => GRID(p.y) === -1,
-    R: p => GRID(p.x) === 1,
-    L: p => GRID(p.x) === -1,
-    F: p => GRID(p.z) === 1,
-    B: p => GRID(p.z) === -1,
+const LOGICAL_LAYER_TEST = {
+    U: p => p.y > 0.5,
+    D: p => p.y < -0.5,
+    R: p => p.x > 0.5,
+    L: p => p.x < -0.5,
+    F: p => p.z > 0.5,
+    B: p => p.z < -0.5,
 };
 
 // ----- Move queue (serialize animations) -----
@@ -213,23 +218,21 @@ function rotateLayer(move, __fromQueue = false) {
         const prime = suf === "'";
         let axis = MOVE_AXIS[face].clone();
         let sign = prime ? -1 : 1;
+        const angle = quarters * (Math.PI / 2) * sign;
+        const moveQuaternion = new THREE.Quaternion().setFromAxisAngle(axis, angle);
 
         const temp = new THREE.Group();
         temp.position.set(0, 0, 0); // rotate about cube origin
         cubeRoot.add(temp);
 
         const targets = [];
-        const wp = new THREE.Vector3();
-        const lp = new THREE.Vector3();
         for (const c of cubies) {
-            c.group.getWorldPosition(wp);
-            lp.copy(wp);
-            cubeRoot.worldToLocal(lp); // local coords relative to cubeRoot
-            if (LAYER_TEST[face](lp)) {
+            if (LOGICAL_LAYER_TEST[face](c.logicalPosition)) {
                 temp.attach(c.group); // reparent into rotating temp group
                 targets.push(c);
             }
         }
+        temp.quaternion.set(0, 0, 0, 1); // Reset temp group rotation
 
         // Optional: sanity log
         console.log(`rotateLayer ${move}: selected ${targets.length} cubies`);
@@ -237,14 +240,25 @@ function rotateLayer(move, __fromQueue = false) {
         const total = quarters * (Math.PI / 2) * sign;
         const duration = 180 * quarters;
         const frames = Math.max(24 * quarters, 1);
-        const delta = total / frames;
+        const startQuat = new THREE.Quaternion(); // Identity
+        const endQuat = new THREE.Quaternion().setFromAxisAngle(axis, total);
         let i = 0;
         const id = setInterval(() => {
-            temp.rotateOnWorldAxis(axis, delta);
+            i++;
+            const t = i / frames;
+            temp.quaternion.copy(startQuat).slerp(endQuat, t);
             i++;
             if (i >= frames) {
                 clearInterval(id);
-                targets.forEach(c => { cubeRoot.attach(c.group); snapCubieTransform(c.group); });
+                // Update logical state and snap visual state
+                targets.forEach(c => {
+                    cubeRoot.attach(c.group);
+                    c.logicalPosition.applyQuaternion(moveQuaternion).round();
+                    c.logicalQuaternion.premultiply(moveQuaternion);
+                    // Snap visual state to logical state
+                    c.group.position.copy(c.logicalPosition).multiplyScalar(CUBIE_SIZE);
+                    c.group.quaternion.copy(c.logicalQuaternion);
+                });
                 cubeRoot.remove(temp);
                 resolve();
             }
@@ -252,33 +266,15 @@ function rotateLayer(move, __fromQueue = false) {
     });
 }
 
-function snapCubieTransform(group) {
-    const m = new THREE.Matrix4().extractRotation(group.matrixWorld);
-    const axes = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-    m.extractBasis(axes[0], axes[1], axes[2]);
-    axes.forEach(a => a.set(Math.round(a.x), Math.round(a.y), Math.round(a.z)).normalize());
-    const rot = new THREE.Matrix4().makeBasis(axes[0], axes[1], axes[2]);
-
-    const parentInv = new THREE.Matrix4().copy(cubeRoot.matrixWorld).invert();
-    const local = new THREE.Matrix4().multiplyMatrices(parentInv, group.matrixWorld);
-    const pos = new THREE.Vector3().setFromMatrixPosition(local);
-    pos.set(Math.round(pos.x * 3) / 3, Math.round(pos.y * 3) / 3, Math.round(pos.z * 3) / 3);
-
-    group.matrix.identity();
-    group.position.copy(pos);
-    group.setRotationFromMatrix(rot);
-}
-
 async function animateMoves(moves) {
     for (const mv of moves) await rotateLayer(mv);
 }
 
+// FIX: proper reference to button element & single handler (queue based)
 moveButtons.forEach(b => b.addEventListener('click', () => {
-    const move = btn.dataset.move;
+    const move = b.dataset.move;
     enqueueMove(move);
     statusEl.textContent = `Queued: ${move}  (in flight: ${draining ? 'yes' : 'no'}, pending: ${moveQueue.length})`;
-
-    //await rotateLayer(b.dataset.move);
 }));
 
 // ---------- Export/import facelets in URFDLB order ----------
@@ -299,134 +295,53 @@ const _wp = new THREE.Vector3();
 const _wn = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 
-// Returns the 9 sticker meshes for `face` in proper 3x3 order:
-// row-major, top→bottom (v descending), left→right (u ascending)
-function collectFaceStickers(face) {
-    const items = [];
-    cubeRoot.traverse(obj => {
-        if (obj.isMesh && obj.userData && obj.userData.label) {
-            obj.getWorldPosition(_wp);
-            _wn.set(0, 0, 1).applyQuaternion(obj.getWorldQuaternion(_q)); // plane's outward normal
-            if (_wn.dot(face.normal) > 0.99) {
-                const u = _wp.dot(face.u);
-                const v = _wp.dot(face.v);
-                items.push({ mesh: obj, u, v });
-            }
-        }
-    });
-    // Expect exactly 9
-    if (items.length !== 9) {
-        console.warn(`collectFaceStickers(${face.letter}) expected 9, got ${items.length}`);
-    }
-    // Sort: v desc (top→bottom), then u asc (left→right)
-    items.sort((a, b) => {
-        if (Math.abs(a.v - b.v) > 1e-3) return b.v - a.v;
-        return a.u - b.u;
-    });
-    return items.map(x => x.mesh);
-}
-
-// === Export: cube -> 54-char URFDLB string ===
 function exportFacelets() {
-    const out = [];
+    const facelets = [];
     for (const face of ORIENT) {
-        const meshes = collectFaceStickers(face);
-        for (const m of meshes) out.push(m.userData.label);
-    }
-    return out.join('');
-}
+        const stickersOnFace = [];
+        // Find the 9 cubies on this face based on their logical position
+        const cubiesOnFace = cubies.filter(c => LOGICAL_LAYER_TESTface.letter);
 
-// === Import: 54-char URFDLB string -> paint cube ===
-function importFacelets(facelets) {
-    if (!facelets || facelets.length !== 54) return false;
-
-    // repaint in-place (do NOT rebuild geometry) so the orientation stays intact
-    let idx = 0;
-    for (const face of ORIENT) {
-        const meshes = collectFaceStickers(face);
-        if (meshes.length !== 9) throw new Error(`Expected 9 stickers on ${face.letter}, got ${meshes.length}`);
-        for (let i = 0; i < 9; i++) {
-            const ch = facelets[idx++];
-            const m = meshes[i];
-            if (!m.userData.isCenter) {
-                m.userData.label = ch;
-                m.material.color.setHex(COLOR_HEX[ch]);
-            } else {
-                // keep centers locked to their face letter
-                m.userData.label = face.letter;
-                m.material.color.setHex(COLOR_HEX[face.letter]);
+        for (const cubie of cubiesOnFace) {
+            // For each cubie, find which of its stickers is pointing outwards on this face
+            for (const sticker of cubie.stickers) {
+                const stickerNormal = sticker.normal.clone().applyQuaternion(cubie.logicalQuaternion);
+                if (stickerNormal.dot(face.normal) > 0.99) {
+                    // Project the cubie's logical position onto the face's U/V axes for sorting
+                    const u = cubie.logicalPosition.dot(face.u);
+                    const v = cubie.logicalPosition.dot(face.v);
+                    stickersOnFace.push({ label: sticker.label, u, v });
+                    break; // Found the correct sticker for this cubie
+                }
             }
         }
-    }
-    return true;
-}
 
-// ---------- REST call ----------
-async function callSolve(facelets, useMl) {
-    const resp = await fetch('/api/solve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ facelets, useMl })
-    });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.error || 'Solve failed');
-    return json;
-}
-
-// ---------- Render loop ----------
-function render() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(render); }
-render();
-window.addEventListener('resize', () => {
-    const w = canvasEl.clientWidth, h = canvasEl.clientHeight;
-    camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
-});
-
-// ---------- Buttons ----------
-document.querySelectorAll('.controls button[data-move]').forEach(b => b.addEventListener('click', async () => {
-    debugger;
-    await rotateLayer(b.dataset.move);
-}));
-
-exportBtn.addEventListener('click', () => { faceletsEl.value = exportFacelets(); });
-importBtn.addEventListener('click', () => {
-    const s = faceletsEl.value.trim();
-    statusEl.textContent = (s.length === 54 && importFacelets(s)) ? 'Imported facelets.' : 'Provide 54 chars.';
-});
-solvedBtn.addEventListener('click', () => {
-    buildCubeSolved();
-    faceletsEl.value = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
-    statusEl.textContent = 'Set solved.';
-});
-clearBtn.addEventListener('click', () => {
-    cubeRoot.traverse(obj => {
-        if (obj.isMesh && obj.userData && obj.userData.label && !obj.userData.isCenter) {
-            obj.userData.label = 'U';
-            obj.material.color.setHex(COLOR_HEX['U']);
+        if (stickersOnFace.length !== 9) {
+            console.error(`BUG: Expected 9 stickers on face ${face.letter}, but found ${stickersOnFace.length}`);
+            // Fill with 'X' to make it obvious there's a bug, but don't crash
+            while(stickersOnFace.length < 9) stickersOnFace.push({label: 'X', u:0, v:0});
         }
-    });
-    faceletsEl.value = '';
-    statusEl.textContent = 'Cleared.';
-});
-solveBtn.addEventListener('click', async () => {
-    try {
-        const facelets = exportFacelets();
-        faceletsEl.value = facelets;
-        statusEl.textContent = 'Solving...';
-        solutionEl.textContent = '';
 
-        const json = await callSolve(facelets, useMlEl.checked);
-        const moves = json.moves || [];
-        solutionEl.textContent = `Length: ${json.length}\nMoves: ${moves.join(' ')}`;
+        // Sort stickers to be in the correct URFDLB order (top-left to bottom-right)
+        stickersOnFace.sort((a, b) => {
+            if (Math.abs(a.v - b.v) > 0.1) return b.v - a.v; // Sort by V (descending)
+            return a.u - b.u; // Then by U (ascending)
+        });
 
-        statusEl.textContent = 'Animating...';
-        //await animateMoves(moves);
-        await runMoves(moves);
-        statusEl.textContent = 'Done.';
-    } catch (e) {
-        console.error(e);
-        statusEl.textContent = e.message || 'Error.';
+        const faceLabels = stickersOnFace.map(s => s.label);
+        facelets.push(...faceLabels);
     }
-});
+    return facelets.join('');
+}
+function importFacelets(facelets){ if (!facelets || facelets.length!==54) return false; let idx=0; for (const face of ORIENT){ const meshes=collectFaceStickers(face); if (meshes.length!==9) throw new Error(`Expected 9 stickers on ${face.letter}, got ${meshes.length}`); for (let i=0;i<9;i++){ const ch=facelets[idx++]; const m=meshes[i]; if (i===4){ // center forced
+                m.userData.label = face.letter; m.material.color.setHex(COLOR_HEX[face.letter]); continue; } if (!m.userData.isCenter){ m.userData.label=ch; m.material.color.setHex(COLOR_HEX[ch]); } else { m.userData.label=face.letter; m.material.color.setHex(COLOR_HEX[face.letter]); } } } return true; }
 
-// Prefill with solved
-faceletsEl.value = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
+async function callSolve(facelets, useMl){ const resp=await fetch('/api/solve',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ facelets, useMl })}); const json=await resp.json(); if (!resp.ok) throw new Error(json.error || 'Solve failed'); return json; }
+function render(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(render); } render();
+window.addEventListener('resize', ()=>{ const w=canvasEl.clientWidth,h=canvasEl.clientHeight; camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h); });
+exportBtn.addEventListener('click', ()=>{ faceletsEl.value=exportFacelets(); });
+importBtn.addEventListener('click', ()=>{ const s=faceletsEl.value.trim(); statusEl.textContent=(s.length===54 && importFacelets(s)) ? 'Imported facelets.' : 'Provide 54 chars.'; });
+solvedBtn.addEventListener('click', ()=>{ buildCubeSolved(); faceletsEl.value="UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"; statusEl.textContent='Set solved.'; });
+clearBtn.addEventListener('click', ()=>{ cubeRoot.traverse(obj=>{ if (obj.isMesh && obj.userData && obj.userData.label && !obj.userData.isCenter){ obj.userData.label='U'; obj.material.color.setHex(COLOR_HEX['U']); } }); faceletsEl.value=''; statusEl.textContent='Cleared.'; });
+solveBtn.addEventListener('click', async ()=>{ try { const facelets=exportFacelets(); faceletsEl.value=facelets; statusEl.textContent='Solving...'; solutionEl.textContent=''; const json=await callSolve(facelets, useMlEl.checked); const moves=json.moves || []; solutionEl.textContent=`Length: ${json.length}\nMoves: ${moves.join(' ')}`; statusEl.textContent='Animating...'; await runMoves(moves); statusEl.textContent='Done.'; } catch(e){ console.error(e); statusEl.textContent=e.message || 'Error.'; } });
+faceletsEl.value="UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
