@@ -300,7 +300,7 @@ function exportFacelets() {
     for (const face of ORIENT) {
         const stickersOnFace = [];
         // Find the 9 cubies on this face based on their logical position
-        const cubiesOnFace = cubies.filter(c => LOGICAL_LAYER_TESTface.letter);
+        const cubiesOnFace = cubies.filter(c => LOGICAL_LAYER_TEST[face.letter](c.logicalPosition));
 
         for (const cubie of cubiesOnFace) {
             // For each cubie, find which of its stickers is pointing outwards on this face
@@ -333,8 +333,42 @@ function exportFacelets() {
     }
     return facelets.join('');
 }
-function importFacelets(facelets){ if (!facelets || facelets.length!==54) return false; let idx=0; for (const face of ORIENT){ const meshes=collectFaceStickers(face); if (meshes.length!==9) throw new Error(`Expected 9 stickers on ${face.letter}, got ${meshes.length}`); for (let i=0;i<9;i++){ const ch=facelets[idx++]; const m=meshes[i]; if (i===4){ // center forced
-                m.userData.label = face.letter; m.material.color.setHex(COLOR_HEX[face.letter]); continue; } if (!m.userData.isCenter){ m.userData.label=ch; m.material.color.setHex(COLOR_HEX[ch]); } else { m.userData.label=face.letter; m.material.color.setHex(COLOR_HEX[face.letter]); } } } return true; }
+
+function importFacelets(facelets) {
+    if (!facelets || facelets.length !== 54) return false;
+
+    // Reset cube to solved state first to get a clean slate
+    buildCubeSolved();
+
+    let faceletsIndex = 0;
+    for (const face of ORIENT) {
+        const stickersToSet = facelets.slice(faceletsIndex, faceletsIndex + 9);
+        faceletsIndex += 9;
+
+        // Find the 9 cubies on this face based on their logical position
+        const cubiesOnFace = cubies.filter(c => LOGICAL_LAYER_TESTface.letter);
+
+        // Sort them into the same URFDLB order as the export function
+        cubiesOnFace.sort((a, b) => {
+            const vA = a.logicalPosition.dot(face.v);
+            const vB = b.logicalPosition.dot(face.v);
+            if (Math.abs(vA - vB) > 0.1) return vB - vA;
+            const uA = a.logicalPosition.dot(face.u);
+            const uB = b.logicalPosition.dot(face.u);
+            return uA - uB;
+        });
+
+        // Apply the facelet colors to the correct stickers
+        for (let i = 0; i < 9; i++) {
+            const cubie = cubiesOnFace[i];
+            const sticker = cubie.stickers.find(s => s.normal.dot(face.normal) > 0.99);
+            const newLabel = stickersToSet[i];
+            sticker.label = newLabel;
+            sticker.mesh.material.color.setHex(COLOR_HEX[newLabel]);
+        }
+    }
+    return true;
+}
 
 async function callSolve(facelets, useMl){ const resp=await fetch('/api/solve',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ facelets, useMl })}); const json=await resp.json(); if (!resp.ok) throw new Error(json.error || 'Solve failed'); return json; }
 function render(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(render); } render();
